@@ -2,15 +2,12 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:assistant/services/player.dart';
 
-// External Libaries
-import 'package:audio_recorder/audio_recorder.dart';
-
 
 class Warnings extends StatelessWidget {
   String message;
   Icon button_icon;
   Function button_function;
-  Warnings({this.message,this.button_icon,this.button_function});
+  Warnings({this.message});
   Warnings wrn;
   @override
   Widget build(BuildContext context) {
@@ -40,13 +37,6 @@ class Warnings extends StatelessWidget {
                           fontWeight: FontWeight.bold
                       ) ,
                     ),
-                  ),
-                  Expanded(
-                    flex: 1,
-                    child: IconButton(
-                      icon: button_icon,
-                      onPressed: button_function,
-                    ) ,
                   ),
                 ],
               )

@@ -1,16 +1,23 @@
 
+import 'dart:async';
+import 'dart:io';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_sound/flutter_sound.dart';
+import 'package:path_provider/path_provider.dart';
 import 'record.dart';
 import 'package:assistant/services/player.dart';
 import 'package:assistant/services/record_class.dart';
 import 'package:assistant/pages/record.dart';
+import 'package:flutter_tts/flutter_tts.dart';
 
 // External Libraries
 import 'package:qrscan/qrscan.dart' as scanner;
 
 // Custom Widgets
 import 'package:assistant/widgets/warning.dart';
+
 
 class Listing extends StatefulWidget {
   @override
@@ -25,12 +32,12 @@ class _ListingState extends State<Listing> {
   bool first_start = true;
   String last_id;
 
-  List warnings = [
-    Warnings(
-        button_function: (){
-        },
-        button_icon: Icon(Icons.add),
-        message: "Lütfen en az bir adet QR kod ekleyiniz!"),
+  FlutterSound flutterSound = new FlutterSound();
+  StreamSubscription<RecordStatus>_recorderSubscription;
+
+
+  List list = [
+    Warnings(message: "Herhangi bir QR kodu Bulunamadı,Lütfen QR kod ekleyiniz!")
   ];
 
 
@@ -38,11 +45,22 @@ class _ListingState extends State<Listing> {
     String cameraScanResult = await scanner.scan();
     return cameraScanResult;
   }
-  @override
+  
+  FlutterTts flutterTts = FlutterTts();
+  Future _speak(String word) async{
+    List<dynamic> languages = await flutterTts.getLanguages;
+    await flutterTts.setLanguage("tr-TR");
+    var result = await flutterTts.speak(word);
+}
 
   void qrCodeReader() async{
     String id =  await qr();
     player.play(records, id);
+    //Directory tempDir = await getApplicationDocumentsDirectory();
+    //File outputFile =  File ('${tempDir.path}/flutter1.aac');
+    //flutterSound.startPlayer(outputFile.path);
+   
+    _speak(id);
     setState(() {
       last_id = id;
     });
@@ -50,6 +68,7 @@ class _ListingState extends State<Listing> {
 
   }
 
+  @override
   void initState(){
     // TODO: implement initState
     super.initState();
@@ -63,17 +82,23 @@ class _ListingState extends State<Listing> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[600],
+      backgroundColor: Color(0xFF347474),
       appBar: AppBar(
-        title: Center(child: Text("Asistant")),
-        backgroundColor: Colors.grey[900],
+        title: Center(child:
+         Text("Asistant",
+         style:  TextStyle(
+           color:Colors.white 
+         ),),
+         
+         ),
+        backgroundColor: Color(0xFF35495e),//0xFF Önce
       ),
       floatingActionButton: Row(
         mainAxisAlignment: MainAxisAlignment.end,
         children: <Widget>[
           FloatingActionButton(
             heroTag: "btn1",
-            backgroundColor: Colors.deepOrange,
+            backgroundColor: Color(0xFF35495e),
             child: Icon(
                 Icons.add
             ),
@@ -87,7 +112,7 @@ class _ListingState extends State<Listing> {
           SizedBox(width: 10,),
           FloatingActionButton(
             heroTag: "btn2",
-            backgroundColor: Colors.grey[900],
+            backgroundColor: Color(0xFF35495e),
             child: Icon(
                 Icons.center_focus_strong
             ),
@@ -98,10 +123,10 @@ class _ListingState extends State<Listing> {
         ],
       ),
       body: SafeArea(
-        child: ListView.builder(
-              itemCount: warnings.length,
+          child:  ListView.builder(
+              itemCount: list.length,
               itemBuilder: (context, index){
-                return warnings[index];
+                return list[index];
               },
             ),
         )
