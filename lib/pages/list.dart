@@ -13,6 +13,7 @@ import 'package:qrscan/qrscan.dart' as scanner;
 // Custom Widgets
 import 'package:assistant/widgets/warning.dart';
 import 'package:assistant/services/record_item.dart';
+import 'package:sqflite/sqflite.dart';
 
 class Listing extends StatefulWidget {
   @override
@@ -41,6 +42,19 @@ class _ListingState extends State<Listing> {
     var result = await flutterTts.speak(word);
   }
 
+  // Data Base Operations
+  void getDataBase() async {
+    var databasesPath = await getDatabasesPath();
+    var path = databasesPath + 'application.db';
+    Database database = await openDatabase(path, version: 1,
+        onCreate: (Database db, int version) async {
+      // When creating the db, create the table
+      await db.execute(
+          'CREATE TABLE Records (id INTEGER PRIMARY KEY, label TEXT, qrdata TEXT, pathvoice TEXT)');
+    });
+    print("!! DataBase Created!!");
+  }
+
   Future qrCodeReader() async {
     String id = await scanner.scan();
     setState(() {
@@ -55,10 +69,12 @@ class _ListingState extends State<Listing> {
   @override
   void initState() {
     super.initState();
+    getDataBase();
     if (first_start) {
       qrCodeReader();
       first_start = false;
     }
+
     countRecordList = recordList.length;
     if (recordList.length > 0 && list[0] is Warnings) {
       list.removeAt(0);
@@ -71,7 +87,7 @@ class _ListingState extends State<Listing> {
     data = ModalRoute.of(context).settings.arguments;
     try {
       recordList = data['recordList'];
-    } catch (e) {}
+    } catch (error) {}
     if (recordList.length == 0) {
       Fluttertoast.showToast(
         msg: "Hiç kayıt bulunamadı!, Lütfen QR kod ekleyin!",

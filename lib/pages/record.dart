@@ -1,4 +1,3 @@
-
 import 'dart:async';
 import 'dart:ffi';
 import 'dart:io';
@@ -12,22 +11,18 @@ import 'package:qrscan/qrscan.dart' as scanner;
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:assistant/services/record_class.dart';
-
-
+import 'package:sqflite/sqflite.dart';
 
 class Record extends StatefulWidget {
   @override
   _RecordState createState() => _RecordState();
 }
 
-
-
 class _RecordState extends State<Record> {
   FlutterSound flutterSound = new FlutterSound();
-  StreamSubscription<RecordStatus>_recorderSubscription;
+  StreamSubscription<RecordStatus> _recorderSubscription;
   List<RecordClass> recordList = [];
   int id = 0;
-  
 
   bool record_status = false;
   bool did_record = false;
@@ -41,66 +36,84 @@ class _RecordState extends State<Record> {
   Icon play_icon = Icon(Icons.play_arrow);
   File outputFile;
 
-
   final GlobalKey<ScaffoldState> _scaffoldKey = new GlobalKey<ScaffoldState>();
-  
+
   void _submit() {
     SnackBar snackBar = new SnackBar(
         content: new Text("Changes saved at " + new DateTime.now().toString()));
     _scaffoldKey.currentState.showSnackBar(snackBar);
   }
+
   bool isRecordedToDatabase;
-  
-  Future recordToDatabase() async{
-    setState(() {
-      
-      isRecordedToDatabase = true;
-    });
+
+  Future recordToDatabase(id, label, qrdata, pathvoice) async {
+    try {
+      var databasesPath = await getDatabasesPath();
+      var path = databasesPath + 'application.db';
+      Database database = await openDatabase(path, version: 1);
+      await database.transaction((txn) async {
+        int id2 = await txn.rawInsert(
+            //CREATE TABLE Records (id INTEGER PRIMARY KEY, label TEXT, qrdata TEXT, pathvoice TEXT)
+            'INSERT INTO Records(id, label, qrdata, pathvoice) VALUES(?, ?, ?, ?)',
+            [id, label, qrdata, pathvoice]);
+        print('inserted2: $id2');
+      });
+      setState(() {
+        isRecordedToDatabase = true;
+      });
+    } catch (e) {
+      setState(() {
+        isRecordedToDatabase = false;
+      });
+      print(e);
+    }
   }
 
-  Future recording() async{
+  Future recording() async {
     Directory tempDir = await getApplicationDocumentsDirectory();
-    outputFile =  File ('${tempDir.path}/flutter$id.aac');
+    outputFile = File('${tempDir.path}/flutter$id.aac');
     print(outputFile.path);
 
-    String result = await flutterSound.startRecorder(uri: outputFile.path,codec: t_CODEC.CODEC_AAC,);
+    String result = await flutterSound.startRecorder(
+      uri: outputFile.path,
+      codec: t_CODEC.CODEC_AAC,
+    );
     print(result);
 
     _recorderSubscription = flutterSound.onRecorderStateChanged.listen((e) {
-        DateTime date = new DateTime.fromMillisecondsSinceEpoch(e.currentPosition.toInt());
-        setState(() {
-          record_seconds = DateFormat('mm:ss:SS', 'en_US').format(date);
-        });
-        
+      DateTime date =
+          new DateTime.fromMillisecondsSinceEpoch(e.currentPosition.toInt());
+      setState(() {
+        record_seconds = DateFormat('mm:ss:SS', 'en_US').format(date);
+      });
     });
   }
 
-  Future stoping() async{
+  Future stoping() async {
     String result = await flutterSound.stopRecorder();
 
     if (_recorderSubscription != null) {
-          _recorderSubscription.cancel();
-          _recorderSubscription = null;
+      _recorderSubscription.cancel();
+      _recorderSubscription = null;
     }
   }
 
   String qrCodeData;
-  Future  qrCodeReader() async{
+  Future qrCodeReader() async {
     String data = await scanner.scan();
-    for( var i = 0 ; i< recordList.length; i++ ) { 
-      if(recordList[i].qrCodeValue == data ){
-        data = "Herhangi bir QR kod okutulmadı!"; 
+    for (var i = 0; i < recordList.length; i++) {
+      if (recordList[i].qrCodeValue == data) {
+        data = "Herhangi bir QR kod okutulmadı!";
         Fluttertoast.showToast(
-        msg: "Bu QR kod başka bir kayıt tarafından kullanılmaktadır!",
-        toastLength: Toast.LENGTH_SHORT,
-        gravity: ToastGravity.TOP,
-        timeInSecForIos: 1,
-        backgroundColor: Colors.redAccent,
-        textColor: Colors.white,
-        fontSize: 16.0
-      );
+            msg: "Bu QR kod başka bir kayıt tarafından kullanılmaktadır!",
+            toastLength: Toast.LENGTH_SHORT,
+            gravity: ToastGravity.TOP,
+            timeInSecForIos: 1,
+            backgroundColor: Colors.redAccent,
+            textColor: Colors.white,
+            fontSize: 16.0);
       }
-    } 
+    }
     setState(() {
       qrCodeData = data;
     });
@@ -109,14 +122,12 @@ class _RecordState extends State<Record> {
   @override
   void initState() {
     // TODO: implement initState
-    if(qrCodeData==null){
-      qrCodeData = "Herhangi bir QR kod okutulmadı!"; 
+    if (qrCodeData == null) {
+      qrCodeData = "Herhangi bir QR kod okutulmadı!";
     }
     id = new DateTime.now().millisecondsSinceEpoch;
   }
-  
 
-  
   @override
   Widget build(BuildContext context) {
     Map data = ModalRoute.of(context).settings.arguments;
@@ -129,12 +140,11 @@ class _RecordState extends State<Record> {
           children: <Widget>[
             IconButton(
               icon: Icon(Icons.arrow_back_ios),
-              onPressed: (){
-                Navigator.pushReplacementNamed(context,'/',arguments: {
-                      "recordList":recordList,
+              onPressed: () {
+                Navigator.pushReplacementNamed(context, '/', arguments: {
+                  "recordList": recordList,
                 });
               },
-
             ),
             Text("Asistant")
           ],
@@ -144,51 +154,50 @@ class _RecordState extends State<Record> {
       floatingActionButton: FloatingActionButton(
         child: Icon(Icons.save),
         backgroundColor: Color(0xFF35495e),
-        onPressed:()async{
-          if(qrCodeDescription.text.isNotEmpty && did_record && qrCodeData!="Herhangi bir QR kod okutulmadı!" && outputFile.path != null){
-              
-              await recordToDatabase();
-              if(isRecordedToDatabase){
-            
-                  Fluttertoast.showToast(
-                    msg: "Kayıt içlemi gerçekleşti!",
-                    toastLength: Toast.LENGTH_SHORT,
-                    gravity: ToastGravity.TOP,
-                    timeInSecForIos: 1,
-                    backgroundColor: Colors.greenAccent,
-                    textColor: Colors.white,
-                    fontSize: 16.0
-                  );
+        onPressed: () async {
+          if (qrCodeDescription.text.isNotEmpty &&
+              did_record &&
+              qrCodeData != "Herhangi bir QR kod okutulmadı!" &&
+              outputFile.path != null) {
+            await recordToDatabase(
+                id, qrCodeDescription.text, qrCodeData, outputFile.path);
+            if (isRecordedToDatabase) {
+              Fluttertoast.showToast(
+                  msg: "Kayıt içlemi gerçekleşti!",
+                  toastLength: Toast.LENGTH_SHORT,
+                  gravity: ToastGravity.TOP,
+                  timeInSecForIos: 1,
+                  backgroundColor: Colors.greenAccent,
+                  textColor: Colors.white,
+                  fontSize: 16.0);
 
-                  recordList.add(RecordClass(id: id,label: qrCodeDescription.text,pathVoice: outputFile.path, qrCodeValue:qrCodeData));
-                  Navigator.pushReplacementNamed(context,'/',arguments: {
-                      "recordList":recordList,
-                  });
-              }
-              else{
-                Fluttertoast.showToast(
+              recordList.add(RecordClass(
+                  id: id,
+                  label: qrCodeDescription.text,
+                  pathVoice: outputFile.path,
+                  qrCodeValue: qrCodeData));
+              Navigator.pushReplacementNamed(context, '/', arguments: {
+                "recordList": recordList,
+              });
+            } else {
+              Fluttertoast.showToast(
                   msg: "Veritabanına kayıt esnasında bir problem yaşandı!",
                   toastLength: Toast.LENGTH_SHORT,
                   gravity: ToastGravity.TOP,
                   timeInSecForIos: 1,
                   backgroundColor: Colors.redAccent,
                   textColor: Colors.white,
-                  fontSize: 16.0
-                );
-
-              }
-            
-          }
-          else{
+                  fontSize: 16.0);
+            }
+          } else {
             Fluttertoast.showToast(
-              msg: "Bilgileri lütfen eksiksiz doldurunuz!",
-              toastLength: Toast.LENGTH_SHORT,
-              gravity: ToastGravity.TOP,
-              timeInSecForIos: 1,
-              backgroundColor: Colors.redAccent,
-              textColor: Colors.white,
-              fontSize: 16.0
-            );
+                msg: "Bilgileri lütfen eksiksiz doldurunuz!",
+                toastLength: Toast.LENGTH_SHORT,
+                gravity: ToastGravity.TOP,
+                timeInSecForIos: 1,
+                backgroundColor: Colors.redAccent,
+                textColor: Colors.white,
+                fontSize: 16.0);
           }
         },
       ),
@@ -216,24 +225,23 @@ class _RecordState extends State<Record> {
                           ),
                         ),
                         Expanded(
-                          flex: 2,
-                          child: Column(
-                            children: <Widget>[
-                              IconButton(
-                                icon: Icon(
-                                  Icons.center_focus_strong,
-                                  size: 30,
+                            flex: 2,
+                            child: Column(
+                              children: <Widget>[
+                                IconButton(
+                                  icon: Icon(
+                                    Icons.center_focus_strong,
+                                    size: 30,
+                                  ),
+                                  onPressed: () {
+                                    qrCodeReader();
+                                  },
                                 ),
-                                onPressed: (){
-                                  qrCodeReader();
-                                },
-                              ),
-                              Text(
-                                "Qr Kod verisi:$qrCodeData",
-                              )
-                            ],
-                          )
-                        ),
+                                Text(
+                                  "Qr Kod verisi:$qrCodeData",
+                                )
+                              ],
+                            )),
                       ],
                     ),
                   ),
@@ -247,8 +255,8 @@ class _RecordState extends State<Record> {
                     children: <Widget>[
                       FlatButton(
                         child: record_icon,
-                        onPressed: (){
-                          if(record_status){
+                        onPressed: () {
+                          if (record_status) {
                             stoping();
                             setState(() {
                               record_status = false;
@@ -257,28 +265,26 @@ class _RecordState extends State<Record> {
                                 color: Colors.black,
                               );
                             });
-                          }
-                          else{
+                          } else {
                             recording();
                             setState(() {
                               did_record = true;
                               record_status = true;
-                              record_icon = Icon(
-                                Icons.stop,
-                                color: Colors.red);
-                              play_icon = Icon(Icons.play_arrow,color: Colors.green);
+                              record_icon = Icon(Icons.stop, color: Colors.red);
+                              play_icon =
+                                  Icon(Icons.play_arrow, color: Colors.green);
                             });
                           }
                         },
                       ),
-                      Text(record_seconds
-                      ),
+                      Text(record_seconds),
                       FlatButton(
                         child: play_icon,
-                        onPressed: () async{
-                          if(!flutterSound.isRecording && did_record){
-                            Directory tempDir = await getApplicationDocumentsDirectory();
-                            outputFile =  File ('${tempDir.path}/flutter$id.aac');
+                        onPressed: () async {
+                          if (!flutterSound.isRecording && did_record) {
+                            Directory tempDir =
+                                await getApplicationDocumentsDirectory();
+                            outputFile = File('${tempDir.path}/flutter$id.aac');
                             await flutterSound.startPlayer(outputFile.path);
                           }
                         },
@@ -290,22 +296,21 @@ class _RecordState extends State<Record> {
                   height: 10,
                 ),
                 Card(
-                  child: Column(
-                    children: <Widget>[
-                      Padding(
-                        padding: const EdgeInsets.all(2.0),
-                        child: TextField(
-                          controller: qrCodeDescription,
-                          autofocus: false,
-                          decoration: InputDecoration(
-                           border: OutlineInputBorder() ,
-                           hintText: "Eklenen QR Kodunun Tanımı",
-                          ),
+                    child: Column(
+                  children: <Widget>[
+                    Padding(
+                      padding: const EdgeInsets.all(2.0),
+                      child: TextField(
+                        controller: qrCodeDescription,
+                        autofocus: false,
+                        decoration: InputDecoration(
+                          border: OutlineInputBorder(),
+                          hintText: "Eklenen QR Kodunun Tanımı",
                         ),
-                      )
-                    ],
-                  )
-                )
+                      ),
+                    )
+                  ],
+                ))
               ],
             ),
           ),
@@ -314,7 +319,6 @@ class _RecordState extends State<Record> {
     );
   }
 }
-
 
 /* 
 
