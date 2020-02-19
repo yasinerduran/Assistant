@@ -12,6 +12,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:assistant/services/record_class.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:file_picker/file_picker.dart';
 
 class Record extends StatefulWidget {
   @override
@@ -24,8 +25,20 @@ class _RecordState extends State<Record> {
   List<RecordClass> recordList = [];
   int id = 0;
 
+  bool soundSelection = true;
+  void changeSoundSelection() {
+    if (soundSelection) {
+      soundSelection = false;
+    } else {
+      soundSelection = true;
+    }
+    setState(() {});
+  }
+
   bool record_status = false;
   bool did_record = false;
+  bool did_upoad = false;
+
   Icon record_icon = Icon(
     Icons.mic,
     color: Colors.black,
@@ -33,6 +46,7 @@ class _RecordState extends State<Record> {
   TextEditingController qrCodeDescription = TextEditingController();
 
   String record_seconds = '00:00:000';
+  String sound_file_name = 'Ses dosyası seçilmedi';
   Icon play_icon = Icon(Icons.play_arrow);
   File outputFile;
 
@@ -156,7 +170,7 @@ class _RecordState extends State<Record> {
         backgroundColor: Color(0xFF35495e),
         onPressed: () async {
           if (qrCodeDescription.text.isNotEmpty &&
-              did_record &&
+              (did_record || did_upoad) &&
               qrCodeData != "Herhangi bir QR kod okutulmadı!" &&
               outputFile.path != null) {
             await recordToDatabase(
@@ -249,48 +263,143 @@ class _RecordState extends State<Record> {
                 SizedBox(
                   height: 10,
                 ),
-                Card(
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: <Widget>[
-                      FlatButton(
-                        child: record_icon,
-                        onPressed: () {
-                          if (record_status) {
-                            stoping();
-                            setState(() {
-                              record_status = false;
-                              record_icon = Icon(
-                                Icons.mic,
-                                color: Colors.black,
-                              );
-                            });
-                          } else {
-                            recording();
-                            setState(() {
-                              did_record = true;
-                              record_status = true;
-                              record_icon = Icon(Icons.stop, color: Colors.red);
-                              play_icon =
-                                  Icon(Icons.play_arrow, color: Colors.green);
-                            });
-                          }
-                        },
-                      ),
-                      Text(record_seconds),
-                      FlatButton(
-                        child: play_icon,
-                        onPressed: () async {
-                          if (!flutterSound.isRecording && did_record) {
-                            Directory tempDir =
-                                await getApplicationDocumentsDirectory();
-                            outputFile = File('${tempDir.path}/flutter$id.aac');
-                            await flutterSound.startPlayer(outputFile.path);
-                          }
-                        },
-                      )
-                    ],
+                Center(
+                  child: SizedBox(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: soundSelection
+                          ? <Widget>[
+                              FloatingActionButton(
+                                  heroTag: "Mic",
+                                  child: Icon(
+                                    Icons.mic,
+                                    color: Colors.white,
+                                    size: 30,
+                                  ),
+                                  onPressed: changeSoundSelection,
+                                  backgroundColor: Color(0xFF35495e)),
+                              IconButton(
+                                icon: Icon(
+                                  Icons.file_upload,
+                                  color: Colors.black,
+                                  size: 20,
+                                ),
+                                onPressed: changeSoundSelection,
+                              ),
+                            ]
+                          : <Widget>[
+                              IconButton(
+                                icon: Icon(
+                                  Icons.mic,
+                                  color: Colors.black,
+                                  size: 20,
+                                ),
+                                onPressed: changeSoundSelection,
+                              ),
+                              FloatingActionButton(
+                                  heroTag: "File",
+                                  child: Icon(
+                                    Icons.file_upload,
+                                    color: Colors.white,
+                                    size: 30,
+                                  ),
+                                  onPressed: changeSoundSelection,
+                                  backgroundColor: Color(0xFF35495e)),
+                            ],
+                    ),
                   ),
+                ),
+                SizedBox(
+                  height: 10,
+                ),
+                Card(
+                  child: soundSelection
+                      ? Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: <Widget>[
+                            FlatButton(
+                              child: record_icon,
+                              onPressed: () {
+                                if (record_status) {
+                                  stoping();
+                                  setState(() {
+                                    record_status = false;
+                                    record_icon = Icon(
+                                      Icons.mic,
+                                      color: Colors.black,
+                                    );
+                                  });
+                                } else {
+                                  recording();
+                                  setState(() {
+                                    did_record = true;
+                                    record_status = true;
+                                    record_icon =
+                                        Icon(Icons.stop, color: Colors.red);
+                                    play_icon = Icon(Icons.play_arrow,
+                                        color: Colors.green);
+                                  });
+                                }
+                              },
+                            ),
+                            Text(record_seconds),
+                            FlatButton(
+                              child: play_icon,
+                              onPressed: () async {
+                                if (!flutterSound.isRecording && did_record) {
+                                  Directory tempDir =
+                                      await getApplicationDocumentsDirectory();
+                                  outputFile =
+                                      File('${tempDir.path}/flutter$id.aac');
+                                  await flutterSound
+                                      .startPlayer(outputFile.path);
+                                }
+                              },
+                            )
+                          ],
+                        )
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: <Widget>[
+                            Expanded(
+                              child: FlatButton(
+                                child: Icon(
+                                  Icons.file_upload,
+                                  color: Colors.black,
+                                ),
+                                onPressed: () async {
+                                  File file = await FilePicker.getFile(
+                                      type: FileType.AUDIO);
+                                  outputFile = file;
+                                  print(file.path);
+                                  setState(() {
+                                    sound_file_name =
+                                        outputFile.path.split('/').last;
+                                    did_upoad = true;
+                                  });
+                                },
+                              ),
+                            ),
+                            Expanded(
+                              flex: 2,
+                              child: Text(
+                                sound_file_name,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Expanded(
+                              child: FlatButton(
+                                child: play_icon,
+                                onPressed: () async {
+                                  if (!flutterSound.isRecording && did_upoad) {
+                                    await flutterSound
+                                        .startPlayer(outputFile.path);
+                                  }
+                                },
+                              ),
+                            )
+                          ],
+                        ),
                 ),
                 SizedBox(
                   height: 10,
