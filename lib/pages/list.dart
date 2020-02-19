@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:assistant/pages/record.dart';
 import 'package:assistant/services/record_class.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -21,11 +22,12 @@ class Listing extends StatefulWidget {
 }
 
 List<RecordClass> recordList = [];
+bool first_start = true;
 
 class _ListingState extends State<Listing> {
   // User Defined Variables
   Player player = new Player();
-  bool first_start = true;
+
   String last_id;
 
   FlutterSound flutterSound = new FlutterSound();
@@ -53,6 +55,35 @@ class _ListingState extends State<Listing> {
           'CREATE TABLE Records (id INTEGER PRIMARY KEY, label TEXT, qrdata TEXT, pathvoice TEXT)');
     });
     print("!! DataBase Created!!");
+    List<Map> list = await database.rawQuery('SELECT * FROM Records');
+    for (int i = 0; i < list.length; i++) {
+      RecordClass rc = new RecordClass(
+          id: list[i]["id"],
+          label: list[i]["label"],
+          qrCodeValue: list[i]["qrdata"],
+          pathVoice: list[i]["pathvoice"]);
+      recordList.add(rc);
+    }
+    if (recordList.length == 0) {
+      Fluttertoast.showToast(
+        msg: "Hiç kayıt bulunamadı!, Lütfen QR kod ekleyin!",
+        toastLength: Toast.LENGTH_LONG,
+        gravity: ToastGravity.TOP,
+        timeInSecForIos: 5,
+        backgroundColor: Colors.orangeAccent,
+        textColor: Colors.white,
+        fontSize: 16.0,
+      );
+    }
+    setState(() {});
+  }
+
+  void removeRecordOnDatabase(id) async {
+    var databasesPath = await getDatabasesPath();
+    var path = databasesPath + 'application.db';
+    Database database = await openDatabase(path, version: 1);
+    var count =
+        await database.rawDelete('DELETE FROM Records WHERE id = ?', [id]);
   }
 
   Future qrCodeReader() async {
@@ -69,15 +100,11 @@ class _ListingState extends State<Listing> {
   @override
   void initState() {
     super.initState();
-    getDataBase();
+    recordList = [];
     if (first_start) {
+      getDataBase();
       qrCodeReader();
       first_start = false;
-    }
-
-    countRecordList = recordList.length;
-    if (recordList.length > 0 && list[0] is Warnings) {
-      list.removeAt(0);
     }
   }
 
@@ -88,17 +115,6 @@ class _ListingState extends State<Listing> {
     try {
       recordList = data['recordList'];
     } catch (error) {}
-    if (recordList.length == 0) {
-      Fluttertoast.showToast(
-        msg: "Hiç kayıt bulunamadı!, Lütfen QR kod ekleyin!",
-        toastLength: Toast.LENGTH_LONG,
-        gravity: ToastGravity.TOP,
-        timeInSecForIos: 5,
-        backgroundColor: Colors.orangeAccent,
-        textColor: Colors.white,
-        fontSize: 16.0,
-      );
-    }
 
     return Scaffold(
         backgroundColor: Color(0xFF347474),
@@ -147,6 +163,8 @@ class _ListingState extends State<Listing> {
                       silinecekItem: (silinecekItemId) {
                         recordList
                             .removeWhere((item) => item.id == silinecekItemId);
+                        removeRecordOnDatabase(silinecekItemId);
+
                         setState(() {});
                       },
                     );
