@@ -5,7 +5,9 @@ import 'dart:io';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_sound/flutter_sound.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import 'record.dart';
 import 'package:assistant/services/player.dart';
 import 'package:assistant/services/record_class.dart';
@@ -17,23 +19,25 @@ import 'package:qrscan/qrscan.dart' as scanner;
 
 // Custom Widgets
 import 'package:assistant/widgets/warning.dart';
+import 'package:assistant/services/record_item.dart';
 
 
 class Listing extends StatefulWidget {
   @override
   _ListingState createState() => _ListingState();
 }
-
+List recordList = [];
 class _ListingState extends State<Listing> {
 
   // User Defined Variables
-  List<RecordClass> records;
   Player player = new Player();
   bool first_start = true;
   String last_id;
+  
 
   FlutterSound flutterSound = new FlutterSound();
   StreamSubscription<RecordStatus>_recorderSubscription;
+
 
 
   List list = [
@@ -41,33 +45,28 @@ class _ListingState extends State<Listing> {
   ];
 
 
-  Future<String> qr() async{
-    String cameraScanResult = await scanner.scan();
-    return cameraScanResult;
-  }
+  
   
   FlutterTts flutterTts = FlutterTts();
   Future _speak(String word) async{
     List<dynamic> languages = await flutterTts.getLanguages;
     await flutterTts.setLanguage("tr-TR");
     var result = await flutterTts.speak(word);
-}
+  }
+ 
 
-  void qrCodeReader() async{
-    String id =  await qr();
-    player.play(records, id);
-    //Directory tempDir = await getApplicationDocumentsDirectory();
-    //File outputFile =  File ('${tempDir.path}/flutter1.aac');
-    //flutterSound.startPlayer(outputFile.path);
-   
-    _speak(id);
+  Future qrCodeReader() async{
+    String id = await scanner.scan();
     setState(() {
       last_id = id;
     });
+    Player player = new Player();
+    player.play(recordList, id);
     qrCodeReader();
-
   }
 
+ 
+  int countRecordList = 0;
   @override
   void initState(){
     // TODO: implement initState
@@ -76,11 +75,33 @@ class _ListingState extends State<Listing> {
       qrCodeReader();
       first_start = false;
     }
-
+    countRecordList = recordList.length;
+    if(recordList.length>0&& list[0] is Warnings){
+      list.removeAt(0);
+    }
   }
-
+  Map data ={};
   @override
   Widget build(BuildContext context) {
+    data = ModalRoute.of(context).settings.arguments;
+    try{
+     recordList = data['recordList'];
+    }
+    catch (e ){
+
+    }
+    if(recordList.length==0){
+      Fluttertoast.showToast(
+        msg: "Hiç kayıt bulunamadı!, Lütfen QR kod ekleyin!",
+        toastLength: Toast.LENGTH_SHORT,
+        gravity: ToastGravity.TOP,
+        timeInSecForIos: 5,
+        backgroundColor: Colors.orangeAccent,
+        textColor: Colors.white,
+        fontSize: 16.0
+      );
+    }
+    
     return Scaffold(
       backgroundColor: Color(0xFF347474),
       appBar: AppBar(
@@ -103,10 +124,9 @@ class _ListingState extends State<Listing> {
                 Icons.add
             ),
             onPressed: (){
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => Record()),
-              );
+                Navigator.pushReplacementNamed(context, '/record',arguments: {
+                  "recordList": recordList
+                });
             },
           ),
           SizedBox(width: 10,),
@@ -123,10 +143,10 @@ class _ListingState extends State<Listing> {
         ],
       ),
       body: SafeArea(
-          child:  ListView.builder(
-              itemCount: list.length,
+          child: ListView.builder(
+              itemCount: recordList.length,
               itemBuilder: (context, index){
-                return list[index];
+                return RecordItem(record: recordList[index],recordList: recordList,);
               },
             ),
         )
@@ -134,4 +154,14 @@ class _ListingState extends State<Listing> {
   }
 }
 
+
+
+/*
+ListView.builder(
+              itemCount: list.length,
+              itemBuilder: (context, index){
+                return list[index];
+              },
+            ),
+*/
 
