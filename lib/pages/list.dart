@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:assistant/services/record_class.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_sound/flutter_sound.dart';
@@ -18,7 +19,7 @@ class Listing extends StatefulWidget {
   _ListingState createState() => _ListingState();
 }
 
-List recordList = [];
+List<RecordClass> recordList = [];
 
 class _ListingState extends State<Listing> {
   // User Defined Variables
@@ -74,7 +75,7 @@ class _ListingState extends State<Listing> {
     if (recordList.length == 0) {
       Fluttertoast.showToast(
         msg: "Hiç kayıt bulunamadı!, Lütfen QR kod ekleyin!",
-        toastLength: Toast.LENGTH_SHORT,
+        toastLength: Toast.LENGTH_LONG,
         gravity: ToastGravity.TOP,
         timeInSecForIos: 5,
         backgroundColor: Colors.orangeAccent,
@@ -120,19 +121,27 @@ class _ListingState extends State<Listing> {
           ],
         ),
         body: SafeArea(
-          child: ListView.builder(
-            itemCount: recordList.length,
-            itemBuilder: (context, index) {
-              return RecordItem(
-                record: recordList[index],
-                recordList: recordList,
-                silinecekItem: (silinecekItemId) {
-                  recordList.removeWhere((item) => item.id == silinecekItemId);
-                  setState(() {});
-                },
-              );
-            },
-          ),
+          child: recordList.isNotEmpty
+              ? ListView.builder(
+                  itemCount: recordList.length,
+                  itemBuilder: (context, index) {
+                    return RecordItem(
+                      record: recordList[index],
+                      recordList: recordList,
+                      silinecekItem: (silinecekItemId) {
+                        recordList
+                            .removeWhere((item) => item.id == silinecekItemId);
+                        setState(() {});
+                      },
+                    );
+                  },
+                )
+              : SizedBox(
+                  height: MediaQuery.of(context).size.height * 0.2,
+                  child: Warnings(
+                    message: "Hiç kayıt bulunamadı!, Lütfen QR kod ekleyin!",
+                  ),
+                ),
         ));
   }
 }

@@ -25,7 +25,7 @@ class Record extends StatefulWidget {
 class _RecordState extends State<Record> {
   FlutterSound flutterSound = new FlutterSound();
   StreamSubscription<RecordStatus>_recorderSubscription;
-  List recordList = [];
+  List<RecordClass> recordList = [];
   int id = 0;
   
 
@@ -50,6 +50,7 @@ class _RecordState extends State<Record> {
     _scaffoldKey.currentState.showSnackBar(snackBar);
   }
   bool isRecordedToDatabase;
+  
   Future recordToDatabase() async{
     setState(() {
       
@@ -163,8 +164,6 @@ class _RecordState extends State<Record> {
                   Navigator.pushReplacementNamed(context,'/',arguments: {
                       "recordList":recordList,
                   });
-                  
-                  
               }
               else{
                 Fluttertoast.showToast(
