@@ -23,6 +23,7 @@ class Listing extends StatefulWidget {
 
 List<RecordClass> recordList = [];
 bool first_start = true;
+bool create_phase = false;
 
 class _ListingState extends State<Listing> {
   // User Defined Variables
@@ -45,12 +46,16 @@ class _ListingState extends State<Listing> {
   }
 
   // Data Base Operations
-  void getDataBase() async {
+  Future<bool> getDataBase() async {
+    var status_is_first_start = false;
     var databasesPath = await getDatabasesPath();
     var path = databasesPath + 'application.db';
     Database database = await openDatabase(path, version: 1,
         onCreate: (Database db, int version) async {
       // When creating the db, create the table
+      status_is_first_start = true;
+      create_phase = true;
+
       await db.execute(
           'CREATE TABLE Records (id INTEGER PRIMARY KEY, label TEXT, qrdata TEXT, pathvoice TEXT)');
     });
@@ -75,7 +80,7 @@ class _ListingState extends State<Listing> {
         fontSize: 16.0,
       );
     }
-    setState(() {});
+    return status_is_first_start;
   }
 
   void removeRecordOnDatabase(id) async {
@@ -100,12 +105,11 @@ class _ListingState extends State<Listing> {
   @override
   void initState() {
     super.initState();
-    recordList = [];
     if (first_start) {
       getDataBase();
-      qrCodeReader();
-      first_start = false;
+      recordList = [];
     }
+    first_start = false;
   }
 
   Map data = {};
@@ -121,7 +125,7 @@ class _ListingState extends State<Listing> {
         appBar: AppBar(
           title: Center(
             child: Text(
-              "Asistant",
+              "Engelsiz Alan",
               style: TextStyle(color: Colors.white),
             ),
           ),

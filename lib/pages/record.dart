@@ -160,7 +160,7 @@ class _RecordState extends State<Record> {
                 });
               },
             ),
-            Text("Asistant")
+            Text("Engelsiz Alan")
           ],
         ),
         backgroundColor: Color(0xFF35495e),
