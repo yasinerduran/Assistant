@@ -15,6 +15,7 @@ import 'package:qrscan/qrscan.dart' as scanner;
 import 'package:assistant/widgets/warning.dart';
 import 'package:assistant/services/record_item.dart';
 import 'package:sqflite/sqflite.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class Listing extends StatefulWidget {
   @override
@@ -91,23 +92,60 @@ class _ListingState extends State<Listing> {
         await database.rawDelete('DELETE FROM Records WHERE id = ?', [id]);
   }
 
+  void dn(perm) async {
+    print("İzinlerin Durumu $perm");
+    if (perm == PermissionStatus.granted) {
+      String id = await scanner.scan();
+      setState(() {
+        last_id = id;
+      });
+      Player player = new Player();
+      player.play(recordList, id);
+      qrCodeReader();
+    } else {
+      Fluttertoast.showToast(
+        msg: "Gerekli izinler bulunamadı!",
+        toastLength: Toast.LENGTH_LONG,
+        gravity: ToastGravity.TOP,
+        timeInSecForIos: 5,
+        backgroundColor: Colors.red,
+        textColor: Colors.white,
+        fontSize: 16.0,
+      );
+    }
+    setState(() {});
+  }
+
+  Future _izinleriAl() async {
+    await PermissionHandler().requestPermissions([
+      PermissionGroup.camera,
+      PermissionGroup.photos,
+      PermissionGroup.storage,
+      PermissionGroup.microphone,
+    ]);
+  }
+
+  Future oncesiIslemler() async {
+    await _izinleriAl();
+  }
+
   Future qrCodeReader() async {
-    String id = await scanner.scan();
-    setState(() {
-      last_id = id;
-    });
-    Player player = new Player();
-    player.play(recordList, id);
-    qrCodeReader();
+    await oncesiIslemler();
+    await dn(await PermissionHandler()
+        .checkPermissionStatus(PermissionGroup.camera));
   }
 
   int countRecordList = 0;
+
   @override
   void initState() {
+    WidgetsBinding.instance
+        .addPostFrameCallback((duration) => print(duration.toString()));
     super.initState();
     if (first_start) {
       getDataBase();
       recordList = [];
+      qrCodeReader();
     }
     first_start = false;
   }
